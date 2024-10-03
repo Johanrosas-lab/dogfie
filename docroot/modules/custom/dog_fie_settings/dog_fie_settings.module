@@ -1,0 +1,67 @@
+<?php
+use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Utility\Html;
+
+
+// use Drupal\Core\Routing\RouteMatchInterface;
+
+function dog_fie_settings_node_insert($node){
+    if ($node->getType() == 'dog_fiel') {
+        $email = $node->field_email->getValue();
+        $name = $node->field_full_name->getValue();
+        $image = $node->field_image_pet->getValue();
+        $pet = $node->field_pet_name->getValue();
+        //testststs
+        $name_img = explode('pet/',$image[0]['value']);
+        $name_uri = explode('com/',$image[0]['value']);
+        $format = explode('.',$name_img[1]);
+        $file  = new stdClass();
+        $file->uri = $name_uri[1]; // File path
+        $file->filename = $name_img[1]; //File name
+        $file->filemime = 'application/'.$format[1]; //File mime type
+        $params['attachments'][] = $file;
+        $mailManager = \Drupal::service('plugin.manager.mail');
+        $module = 'dog_fie_settings';
+        $key = 'create_dog_fie'; // Replace with Your key
+        $to = $email[0]['value'];
+        $params['message'] .= "<img src='http://www.multimediosgyg.co.cr/wp-content/uploads/2015/11/El-Lagar.png'>";
+        $params['message'] .= "<p>El dogFie de ".$pet[0]['value']." ha llegado exitosamente </p>";
+        $params['title'] = 'DogFie, foto de su mascota!';
+        $langcode = \Drupal::currentUser()->getPreferredLangcode();
+        $send = true;
+
+        $result = $mailManager->mail($module, $key, $to, $langcode, $params, NULL, $send);
+        if ($result['result'] != true) {
+          $message = t('There was a problem sending your email notification to @email.', array('@email' => $to));
+          drupal_set_message($message, 'error');
+          \Drupal::logger('mail-log')->error($message);
+          return;
+        }
+
+        $message = t('An email notification has been sent to @email ', array('@email' => $to));
+        drupal_set_message($message);
+        \Drupal::logger('mail-log')->notice($message);
+  }
+}
+
+/**
+* Implements hook_mail().
+*/
+function dog_fie_settings_mail($key, &$message, $params) {
+  $options = array(
+    'langcode' => $message['langcode'],
+  );
+  switch ($key) {
+    case 'create_dog_fie':
+    $message['from'] = \Drupal::config('system.site')->get('mail');
+    $message['subject'] = t('Your mail subject Here: @title', array('@title' => $params['title']), $options);
+    /*sending html formatted email*/
+	  $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    $message['body'][] = $params['message'];
+    //ssss
+    $message['params']['files'] = $params['attachments'];
+      \Drupal::logger('dog_fie')->error("<pre>" . print_r($message, 1) ."</pre>");
+      break;
+  }
+ }
